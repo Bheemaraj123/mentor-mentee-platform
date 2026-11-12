@@ -1,0 +1,44 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+build/
+
+# IDE and editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded files and generated storage
+storage/uploads/
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude local settings
+.claude/
+
+# Local database inspection scripts
+backend/check_db.py
+backend/check_reports.py
