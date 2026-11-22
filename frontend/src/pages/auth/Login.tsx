@@ -61,17 +61,19 @@ export const Login: React.FC = () => {
     }
   };
 
+
   const handleQuickFill = (type: 'mentor' | 'mentee') => {
     if (type === 'mentor') {
       setEmail('mentor.demo@example.com');
-      setPassword('Mentor@123');
+      setPassword('Mentor@12345');
       setRole('mentor');
     } else {
       setEmail('mentee.demo@example.com');
-      setPassword('Mentee@123');
+      setPassword('Mentee@12345');
       setRole('mentee');
     }
   };
+
 
   return (
     <div className="menai-shell" style={{ display: 'flex', minHeight: '100vh', background: '#f4f7fb', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
