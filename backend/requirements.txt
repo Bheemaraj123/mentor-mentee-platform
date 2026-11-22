@@ -19,3 +19,4 @@ av<=18.1.0
 pytest
 httpx
 psycopg2-binary
+email-validator
