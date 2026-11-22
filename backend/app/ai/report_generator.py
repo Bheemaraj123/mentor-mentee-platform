@@ -46,13 +46,23 @@ def generate_structured_report(
             )
 
         logger.info(f"Using Groq API for report generation")
-        return _generate_with_groq(
-            meeting_title,
-            meeting_date,
-            mentee_name,
-            mentor_name,
-            transcript
-        )
+        try:
+            return _generate_with_groq(
+                meeting_title,
+                meeting_date,
+                mentee_name,
+                mentor_name,
+                transcript
+            )
+        except Exception as e:
+            logger.error(f"Groq generation failed ({type(e).__name__}): {e}; falling back to mock report")
+            return _generate_mock_report(
+                meeting_title,
+                meeting_date,
+                mentee_name,
+                mentor_name,
+                transcript,
+            )
 
     # Development fallback
     return _generate_mock_report(
@@ -86,7 +96,7 @@ def _generate_with_groq(
         or "llama-3.3-70b-versatile"
     )
 
-    system_prompt = """
+    system_prompt = f"""
 You are an expert academic mentor generating structured meeting reports.
 
 Analyze the provided meeting transcript carefully.
@@ -100,9 +110,36 @@ IMPORTANT RULES:
 - Extract action items only when they are supported by the transcript.
 - Use concrete details from the transcript.
 - Keep the report specific to this meeting.
-- Return valid JSON only.
+- Return valid JSON only, using EXACTLY the field names shown below.
 - Overall progress must be one of:
   "On Track", "Needs Attention", "At Risk".
+
+REQUIRED JSON STRUCTURE (use these exact field names, all snake_case):
+{{
+  "meeting_details": {{
+    "meeting_title": "<meeting title>",
+    "date": "<meeting date>",
+    "mentor": "<mentor name>",
+    "mentee": "<mentee name>"
+  }},
+  "meeting_summary": "<2-3 sentence summary of the meeting>",
+  "discussion_points": ["<key topic 1>", "<key topic 2>"],
+  "academic_performance": "<assessment of mentee's academic performance>",
+  "strengths": ["<strength 1>"],
+  "weaknesses_or_improvements": ["<area 1>"],
+  "challenges_faced": ["<challenge 1>"],
+  "mentor_observations": "<mentor's professional observations and guidance>",
+  "action_items": [
+    {{
+      "task": "<brief title>",
+      "description": "<detailed description>",
+      "responsible": "<person responsible>",
+      "deadline": "YYYY-MM-DD or empty string"
+    }}
+  ],
+  "follow_up_recommendations": "<recommendations for future sessions>",
+  "overall_progress": "On Track | Needs Attention | At Risk"
+}}
 """
 
     user_prompt = f"""

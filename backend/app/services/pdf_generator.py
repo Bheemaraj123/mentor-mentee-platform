@@ -6,6 +6,7 @@ from reportlab.lib.colors import HexColor
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from typing import Dict, Any
+from xml.sax.saxutils import escape
 
 def generate_report_pdf(report_data: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
@@ -124,36 +125,83 @@ def generate_report_pdf(report_data: Dict[str, Any]) -> bytes:
                 story.append(Paragraph(str(content), body_style))
             story.append(Spacer(1, 4))
 
-    # Action Items Table
+# Action Items Table
     action_items = report_data.get('action_items', [])
+
     if action_items:
         story.append(Paragraph('Action Items', section_style))
 
-        action_data = [['Task', 'Description', 'Responsible', 'Deadline', 'Priority']]
+        # Styles for wrapped table content
+        action_cell_style = ParagraphStyle(
+            'ActionCell',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8,
+            leading=11,
+            spaceAfter=0,
+            wordWrap='CJK',
+        )
+
+        action_header_style = ParagraphStyle(
+            'ActionHeader',
+            parent=action_cell_style,
+            fontName='Helvetica-Bold',
+            textColor=HexColor('#ffffff'),
+            fontSize=8,
+            leading=10,
+        )
+
+        def make_cell(value, cell_style):
+            text = str(value).strip() if value is not None else ''
+            return Paragraph(escape(text) if text else '—', cell_style)
+
+        action_data = [[
+            make_cell('Task', action_header_style),
+            make_cell('Description', action_header_style),
+            make_cell('Responsible', action_header_style),
+            make_cell('Deadline', action_header_style),
+            make_cell('Priority', action_header_style),
+        ]]
+
         for item in action_items:
             action_data.append([
-                item.get('task', ''),
-                item.get('description', ''),
-                item.get('responsible', ''),
-                item.get('deadline', ''),
-                item.get('priority', '').title()
+                make_cell(item.get('task', ''), action_cell_style),
+                make_cell(item.get('description', ''), action_cell_style),
+                make_cell(item.get('responsible', ''), action_cell_style),
+                make_cell(item.get('deadline', ''), action_cell_style),
+                make_cell(item.get('priority', ''), action_cell_style),
             ])
 
-        action_table = Table(action_data, colWidths=[1.2*inch, 2.0*inch, 1.0*inch, 0.8*inch, 0.8*inch])
+        action_table = Table(
+            action_data,
+            colWidths=[
+                1.05 * inch,
+                2.25 * inch,
+                1.05 * inch,
+                1.15 * inch,
+                1.25 * inch,
+            ],
+            repeatRows=1,
+            hAlign='LEFT',
+        )
+
         action_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#059669')),
             ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#ffffff')),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('BACKGROUND', (0, 1), (-1, -1), HexColor('#f0fdf4')),
             ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#d1d5db')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         ]))
+
         story.append(action_table)
         story.append(Spacer(1, 16))
+
 
     # Footer
     story.append(Spacer(1, 30))

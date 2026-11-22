@@ -1,3 +1,4 @@
+
 import os
 import uuid
 from pathlib import Path
@@ -5,6 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from openai import files
 from sqlalchemy.orm import Session  # type: ignore
 
 from app.db.session import get_db
@@ -14,6 +16,7 @@ from app.models.models import (
     Report,
     User,
     MentorMenteeAssignment,
+    Notification,
 )
 from app.api.assignments import MenteeProfileResponse
 from app.services.file_processing import process_file_content
@@ -30,6 +33,7 @@ ALLOWED_EXTENSIONS = {
     ".mp3",
     ".wav",
     ".m4a",
+    ".webm",
     ".mp4",
     ".mov",
     ".mkv",
@@ -47,10 +51,10 @@ def validate_file(file: UploadFile) -> str:
     if not file.filename:
         raise HTTPException(
             status_code=400,
-            detail="Filename is required",
+            detail="Filename is required.",
         )
 
-    ext = Path(file.filename).suffix.lower()
+    ext = Path(file.filename.replace("\\", "/")).suffix.lower()
 
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
@@ -61,7 +65,7 @@ def validate_file(file: UploadFile) -> str:
             ),
         )
 
-    if ext in {".mp3", ".wav", ".m4a"}:
+    if ext in {".mp3", ".wav", ".m4a", ".webm"}:
         return "audio"
 
     if ext in {".mp4", ".mov", ".mkv"}:
@@ -74,9 +78,9 @@ def validate_file(file: UploadFile) -> str:
 
 
 def sanitize_filename(filename: str) -> str:
-    """Sanitize filename to prevent path traversal."""
+    """Prevent path traversal in uploaded filenames."""
 
-    return Path(filename).name
+    return Path(filename.replace("\\", "/")).name
 
 
 def parse_meeting_date(meeting_date: str) -> datetime:
@@ -90,101 +94,198 @@ def parse_meeting_date(meeting_date: str) -> datetime:
 
         return datetime.fromisoformat(normalized_date)
 
-    except ValueError:
+    except (ValueError, AttributeError):
         raise HTTPException(
             status_code=400,
             detail="Invalid meeting_date. Use ISO 8601 format.",
         )
 
 
+def check_user_role(current_user: User):
+    """Allow only mentors and mentees to use meeting endpoints."""
+
+    user_role = getattr(current_user, "role", None)
+
+    if user_role not in {"mentor", "mentee"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Only mentors and mentees can access meetings.",
+        )
+
+
+def get_user_meeting_access(meeting: Meeting, current_user: User):
+    """Verify that the current user belongs to the meeting."""
+
+    check_user_role(current_user)
+
+    user_role = getattr(current_user, "role", None)
+    if user_role == "mentor":
+        if meeting.mentor_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied.",
+            )
+
+    elif user_role == "mentee":
+        if meeting.mentee_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied.",
+            )
+
+
 @router.post("/create-meeting")
 def create_meeting(
-    mentee_id: int = Form(...),
+    mentee_id: Optional[int] = Form(None),
     meeting_title: str = Form(...),
     meeting_date: str = Form(...),
     description: Optional[str] = Form(None),
     files: List[UploadFile] = File(...),
-    current_user: User = Depends(get_current_mentor),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Create a meeting and upload/process its files."""
+    """Create a meeting for either a mentor or a mentee."""
 
-    assignment = (
-        db.query(MentorMenteeAssignment)
-        .filter(
-            MentorMenteeAssignment.mentor_id == current_user.id,
-            MentorMenteeAssignment.mentee_id == mentee_id,
-            MentorMenteeAssignment.status == "active",
-        )
-        .first()
-    )
+    check_user_role(current_user)
 
-    if not assignment:
-        raise HTTPException(
-            status_code=403,
-            detail="Mentee not assigned to this mentor",
+    # Resolve mentor and mentee IDs.
+    if current_user.role == "mentor":
+
+        if mentee_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Please select a mentee.",
+            )
+
+        assignment = (
+            db.query(MentorMenteeAssignment)
+            .filter(
+                MentorMenteeAssignment.mentor_id == current_user.id,
+                MentorMenteeAssignment.mentee_id == mentee_id,
+                MentorMenteeAssignment.status == "active",
+            )
+            .first()
         )
+
+        if not assignment:
+            raise HTTPException(
+                status_code=403,
+                detail="Mentee not assigned to this mentor.",
+            )
+
+        resolved_mentor_id = current_user.id
+        resolved_mentee_id = mentee_id
+
+    else:
+        # Mentee: find their single active mentor assignment.
+        assignment = (
+            db.query(MentorMenteeAssignment)
+            .filter(
+                MentorMenteeAssignment.mentee_id == current_user.id,
+                MentorMenteeAssignment.status == "active",
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(
+                status_code=403,
+                detail="You are not connected to an active mentor.",
+            )
+
+        resolved_mentor_id = assignment.mentor_id
+        resolved_mentee_id = current_user.id
 
     if not files:
         raise HTTPException(
             status_code=400,
-            detail="At least one file is required",
+            detail="At least one file is required.",
         )
 
-    meeting = None
+    meeting_datetime = parse_meeting_date(meeting_date)
+
+    # Validate files before creating the meeting.
+    validated_files = []
+
+    for file in files:
+        if not file.filename:
+            continue
+
+        file_type = validate_file(file)
+        safe_filename = sanitize_filename(file.filename)
+
+        file.file.seek(0, 2)
+        file_size = file.file.tell()
+        file.file.seek(0)
+
+        if file_size == 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {safe_filename} is empty.",
+            )
+
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {safe_filename} exceeds the maximum size of 50 MB.",
+            )
+
+        validated_files.append(
+            (file, file_type, safe_filename)
+        )
+
+    if not validated_files:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one valid file is required.",
+        )
+
+    created_file_paths = []
 
     try:
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+
         meeting = Meeting(
-            mentor_id=current_user.id,
-            mentee_id=mentee_id,
+            mentor_id=resolved_mentor_id,
+            mentee_id=resolved_mentee_id,
             meeting_title=meeting_title,
-            meeting_date=parse_meeting_date(meeting_date),
+            meeting_date=meeting_datetime,
             description=description,
             processing_status="processing",
         )
 
         db.add(meeting)
-        db.commit()
-        db.refresh(meeting)
+        db.flush()
 
         combined_text = ""
 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-        for file in files:
-            if not file.filename:
-                continue
-
-            file_type = validate_file(file)
-            safe_filename = sanitize_filename(file.filename)
-
-            # Check file size.
-            file.file.seek(0, 2)
-            file_size = file.file.tell()
-            file.file.seek(0)
-
-            if file_size > MAX_FILE_SIZE:
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        f"File {safe_filename} exceeds "
-                        "the maximum size of 50 MB"
-                    ),
-                )
+        for file, file_type, safe_filename in validated_files:
 
             stored_filename = (
                 f"{meeting.id}_{uuid.uuid4().hex[:8]}_{safe_filename}"
             )
 
-            file_path = os.path.join(UPLOAD_DIR, stored_filename)
+            file_path = os.path.join(
+                UPLOAD_DIR,
+                stored_filename,
+            )
+
+            file_content = file.file.read()
 
             with open(file_path, "wb") as buffer:
-                buffer.write(file.file.read())
+                buffer.write(file_content)
+
+            created_file_paths.append(file_path)
 
             extracted_text = process_file_content(
                 file_path,
                 file_type,
             )
+
+            if extracted_text is None:
+                extracted_text = ""
+
+            extracted_text = str(extracted_text)
 
             combined_text += (
                 f"\n\n--- File: {safe_filename} ---\n"
@@ -202,7 +303,16 @@ def create_meeting(
 
             db.add(meeting_file)
 
-        meeting.processing_status = "completed"
+        if not combined_text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No transcript or text could be extracted "
+                    "from the uploaded files."
+                ),
+            )
+
+        setattr(meeting, "processing_status", "completed")
 
         db.commit()
         db.refresh(meeting)
@@ -211,15 +321,30 @@ def create_meeting(
             "meeting_id": meeting.id,
             "meeting_title": meeting.meeting_title,
             "extracted_text_preview": combined_text[:2000],
-            "message": "Files successfully uploaded and processed.",
+            "message": "Recording uploaded and processed successfully.",
         }
 
     except HTTPException:
         db.rollback()
+
+        for file_path in created_file_paths:
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except OSError:
+                pass
+
         raise
 
     except Exception as e:
         db.rollback()
+
+        for file_path in created_file_paths:
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except OSError:
+                pass
 
         raise HTTPException(
             status_code=500,
@@ -233,6 +358,8 @@ def list_meetings(
     db: Session = Depends(get_db),
 ):
     """List meetings belonging to the current mentor or mentee."""
+
+    check_user_role(current_user)
 
     if current_user.role == "mentor":
         meetings = (
@@ -278,7 +405,9 @@ def get_meeting(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get meeting details and its uploaded files."""
+    """Get meeting details and uploaded files."""
+
+    check_user_role(current_user)
 
     meeting = (
         db.query(Meeting)
@@ -289,27 +418,10 @@ def get_meeting(
     if not meeting:
         raise HTTPException(
             status_code=404,
-            detail="Meeting not found",
+            detail="Meeting not found.",
         )
 
-    # Check access permissions.
-    if (
-        current_user.role == "mentor"
-        and meeting.mentor_id != current_user.id
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="Access denied",
-        )
-
-    if (
-        current_user.role == "mentee"
-        and meeting.mentee_id != current_user.id
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="Access denied",
-        )
+    get_user_meeting_access(meeting, current_user)
 
     files = (
         db.query(MeetingFile)
@@ -348,37 +460,50 @@ def get_meeting(
 @router.post("/generate-report/{meeting_id}")
 def generate_report_from_meeting(
     meeting_id: int,
-    current_user: User = Depends(get_current_mentor),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Generate a structured report from a meeting's extracted text."""
 
+    check_user_role(current_user)
+
     print("\n========== REPORT ENDPOINT HIT ==========")
     print("Meeting ID:", meeting_id)
-    print("Current mentor ID:", current_user.id)
+    print("Current user ID:", current_user.id)
+    print("Current user role:", current_user.role)
     print("========================================\n")
 
     meeting = (
         db.query(Meeting)
-        .filter(
-            Meeting.id == meeting_id,
-            Meeting.mentor_id == current_user.id,
-        )
+        .filter(Meeting.id == meeting_id)
         .first()
     )
 
     if not meeting:
-        print("ERROR: Meeting not found")
         raise HTTPException(
             status_code=404,
-            detail="Meeting not found",
+            detail="Meeting not found.",
         )
+
+    get_user_meeting_access(meeting, current_user)
 
     mentee = (
         db.query(User)
         .filter(User.id == meeting.mentee_id)
         .first()
     )
+
+    mentor = (
+        db.query(User)
+        .filter(User.id == meeting.mentor_id)
+        .first()
+    )
+
+    if not mentee or not mentor:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting mentor or mentee could not be found.",
+        )
 
     files = (
         db.query(MeetingFile)
@@ -391,7 +516,11 @@ def generate_report_from_meeting(
     print("Number of files:", len(files))
 
     for file in files:
-        extracted = file.extracted_text or ""
+        extracted = getattr(file, "extracted_text", None)
+
+        if not isinstance(extracted, str):
+            extracted = ""
+
         print("File name:", file.file_name)
         print("File type:", file.file_type)
         print("Extracted text length:", len(extracted))
@@ -399,11 +528,15 @@ def generate_report_from_meeting(
 
     print("================================\n")
 
-    full_transcript = "\n".join(
-        file.extracted_text
-        for file in files
-        if file.extracted_text
-    )
+    transcript_parts = []
+
+    for file in files:
+        extracted_text = getattr(file, "extracted_text", None)
+
+    if isinstance(extracted_text, str) and extracted_text.strip():
+        transcript_parts.append(extracted_text)
+
+    full_transcript = "\n".join(transcript_parts)
 
     print("\n========== TRANSCRIPT DEBUG ==========")
     print("Transcript length:", len(full_transcript))
@@ -411,10 +544,9 @@ def generate_report_from_meeting(
     print("=====================================\n")
 
     if not full_transcript.strip():
-        print("ERROR: Transcript is empty")
         raise HTTPException(
             status_code=400,
-            detail="No extracted text is available for report generation",
+            detail="No extracted text is available for report generation.",
         )
 
     try:
@@ -423,10 +555,15 @@ def generate_report_from_meeting(
         report_data = generate_structured_report(
             meeting_title=meeting.meeting_title,
             meeting_date=str(meeting.meeting_date),
-            mentee_name=mentee.full_name if mentee else "Mentee",
-            mentor_name=current_user.full_name,
+            mentee_name=mentee.full_name,
+            mentor_name=mentor.full_name,
             transcript=full_transcript,
         )
+
+        if not isinstance(report_data, dict):
+            raise ValueError(
+                "AI report generator did not return a valid report."
+            )
 
         print(">>> AI REPORT GENERATOR FINISHED <<<")
         print("Generated report summary:", report_data.get("meeting_summary"))
@@ -434,7 +571,7 @@ def generate_report_from_meeting(
 
         report = Report(
             meeting_id=meeting.id,
-            mentor_id=current_user.id,
+            mentor_id=meeting.mentor_id,
             mentee_id=meeting.mentee_id,
             report_content=report_data,
             status="draft",
@@ -442,28 +579,40 @@ def generate_report_from_meeting(
         )
 
         db.add(report)
-        db.commit()
-        db.refresh(report)
+        db.flush()
 
-        print(">>> REPORT SAVED TO DATABASE <<<")
-        print("Report ID:", report.id)
+        # Notify the participant who did not generate the report.
+        user_role = getattr(current_user, "role", None)
 
-        from app.models.models import Notification
-
-        notification = Notification(
-            recipient_id=meeting.mentee_id,
-            title="Report Generated",
-            message=(
+        if user_role == "mentor":
+            notification_recipient = meeting.mentee_id
+            notification_message = (
                 f"Your mentor has generated a report from the meeting "
                 f"'{meeting.meeting_title}'."
-            ),
+            )
+        else:
+            notification_recipient = meeting.mentor_id
+            notification_message = (
+                f"Mentee has generated a report from the meeting "
+                f"'{meeting.meeting_title}'."
+            )
+
+        notification = Notification(
+            recipient_id=notification_recipient,
+            title="Report Generated",
+            message=notification_message,
             notification_type="report",
             related_entity_id=report.id,
         )
 
         db.add(notification)
-        db.commit()
 
+        # Save report and notification together.
+        db.commit()
+        db.refresh(report)
+
+        print(">>> REPORT SAVED TO DATABASE <<<")
+        print("Report ID:", report.id)
         print(">>> NOTIFICATION CREATED <<<")
 
         return {
@@ -471,10 +620,6 @@ def generate_report_from_meeting(
             "status": report.status,
             "report_content": report.report_content,
         }
-
-    except HTTPException:
-        db.rollback()
-        raise
 
     except Exception as e:
         db.rollback()

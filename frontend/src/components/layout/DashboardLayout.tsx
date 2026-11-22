@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,7 +16,8 @@ import {
   Search,
   Plus,
   Sparkles,
-  BrainCircuit
+  BrainCircuit,
+  User,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -44,15 +45,50 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth();
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [search, setSearch] = useState("");
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
+  const workspaceMenuRef = useRef<HTMLDivElement>(null);
 
   const role = user?.role || localStorage.getItem('role') || 'mentor';
   const userName = user?.full_name || 'User';
   const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
+  const toggleWorkspaceMenu = () => {
+    setShowWorkspaceMenu((open) => !open);
+  };
+
+  const handleProfileClick = () => {
+    navigate(`/${role}/settings`);
+    setShowWorkspaceMenu(false);
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showWorkspaceMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(event.target as Node)) {
+        setShowWorkspaceMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showWorkspaceMenu]);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    if (!showWorkspaceMenu) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowWorkspaceMenu(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showWorkspaceMenu]);
 
   const mentorNavItems = [
     { key: "dashboard", label: "Overview", path: "/mentor/dashboard", icon: LayoutDashboard },
@@ -84,10 +120,46 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <LogoMark />
           <span>Men<span className="brand-dot">.</span>AI</span>
         </div>
-        <div className="workspace-switcher">
-          <Avatar initials={userInitials} tone="navy" size="sm" />
-          <span><small>Workspace</small><strong>{userName}'s practice</strong></span>
-          <ChevronDown size={15} />
+        <div ref={workspaceMenuRef} className={`workspace-menu-wrapper ${showWorkspaceMenu ? 'open' : ''}`}>
+          <button
+            type="button"
+            className="workspace-switcher"
+            onClick={toggleWorkspaceMenu}
+            aria-label="Workspace options"
+            aria-expanded={showWorkspaceMenu}
+          >
+            <Avatar initials={userInitials} tone="navy" size="sm" />
+            <span>
+              <small>Workspace</small>
+              <strong>{userName}'s practice</strong>
+            </span>
+            <ChevronDown
+              size={15}
+              className={`transition-transform duration-200 ${showWorkspaceMenu ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {showWorkspaceMenu && (
+            <div className="action-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={handleProfileClick}
+              >
+                <User size={16} />
+                Profile
+              </button>
+
+              <button
+                type="button"
+                className="dropdown-item danger"
+                onClick={handleLogout}
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </div>
+          )}
         </div>
         <div className="rail-label">Workspace</div>
         <nav className="main-nav" aria-label="Main navigation">
@@ -138,11 +210,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <small>72% of monthly credits</small>
             <div className="usage-bar"><span style={{ width: "72%" }} /></div>
           </div>
-          <button className="profile-chip" onClick={handleLogout} title="Click to logout">
-            <Avatar initials={userInitials} tone="coral" size="sm" />
-            <span><strong>{userName}</strong><small>{role.charAt(0).toUpperCase() + role.slice(1)} · Logout</small></span>
-            <LogOut size={16} style={{ color: '#e11d48' }} />
-          </button>
         </div>
       </aside>
 

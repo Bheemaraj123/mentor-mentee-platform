@@ -20,6 +20,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[
+#         "https://26vsfkhx-5173.inc1.devtunnels.ms"
+#     ],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 app.include_router(auth_router, prefix=settings.API_V1_STR + "/auth", tags=["auth"])
 app.include_router(assignments_router, prefix=settings.API_V1_STR + "/assignments", tags=["assignments"])
 app.include_router(meetings_router, prefix=settings.API_V1_STR + "/meetings", tags=["meetings"])

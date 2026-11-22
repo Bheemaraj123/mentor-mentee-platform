@@ -10,6 +10,7 @@ interface TaskFormData {
   description?: string;
   deadline?: string;
   priority: 'low' | 'medium' | 'high';
+  require_file_upload?: boolean;
 }
 
 interface Task {
@@ -75,7 +76,7 @@ export const MentorDashboard = () => {
     queryKey: ['mentor-tasks'],
     queryFn: async () => {
       const response = await api.get(
-        '/tasks/',
+        '/tasks',
         getAuthConfig()
       );
       return response.data;
@@ -92,6 +93,7 @@ export const MentorDashboard = () => {
           description: data.description,
           deadline: data.deadline || null,
           priority: data.priority,
+          require_file_upload: data.require_file_upload,
         },
         getAuthConfig()
       );
@@ -104,6 +106,7 @@ export const MentorDashboard = () => {
       reset({
         title: '',
         priority: 'medium',
+        require_file_upload: false,
       });
     },
   });
@@ -254,23 +257,38 @@ export const MentorDashboard = () => {
         <div className="flex gap-3 mb-3">
           <form
             onSubmit={handleSubmit(onSubmit)}
-            className="flex-1 flex flex-wrap gap-2"
+            className="flex-1 flex flex-wrap gap-2 items-end"
           >
-            <input
-              {...register('title', { required: true })}
-              type="text"
-              placeholder="Task title"
-              className="flex-1 min-w-40 rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3 outline-none"
-            />
+            <div className="flex-1 min-w-40">
+              <input
+                {...register('title', { required: true })}
+                type="text"
+                placeholder="Task title"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3 outline-none"
+              />
+            </div>
 
-            <select
-              {...register('priority', { required: true })}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
+            <div className="min-w-32">
+              <select
+                {...register('priority', { required: true })}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                {...register('require_file_upload')}
+                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label className="text-sm text-gray-700 dark:text-gray-300">
+                Require File Upload
+              </label>
+            </div>
 
             <button
               type="submit"

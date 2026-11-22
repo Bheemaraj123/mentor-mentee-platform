@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.models import Report, ReportVersion, User, Meeting
 from app.api.deps import get_current_mentor, get_current_user
+from app.core.config import settings
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import hashlib
+import secrets
 
 router = APIRouter()
 
@@ -333,3 +336,188 @@ def download_docx(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f"attachment; filename=report_{report_id}.docx"}
     )
+
+
+# ---------------------------------------------------------------------------
+# Public, token-based sharing (Option 2)
+# ---------------------------------------------------------------------------
+
+def _generate_share_token() -> str:
+    """Return a cryptographically unpredictable, URL-safe token."""
+    return secrets.token_urlsafe(48)
+
+
+def _store_share_token(report: Report, token: str) -> None:
+    report.share_token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    report.share_revoked = False
+
+
+def _build_public_share_url(token: str) -> str:
+    base = settings.PUBLIC_BASE_URL.rstrip("/")
+    return f"{base}/api/v1/reports/public/{token}"
+
+
+class ShareLinkResponse(BaseModel):
+    share_url: str
+    token: str
+
+
+class PublicReportResponse(BaseModel):
+    id: int
+    meeting_title: str
+    meeting_date: Optional[str] = None
+    summary: Optional[str] = None
+    themes: List[str] = []
+    action_items: List[dict] = []
+    progress: Optional[str] = None
+    strengths: List[str] = []
+    weaknesses: List[str] = []
+    follow_up_recommendations: Optional[str] = None
+
+
+def _report_dict(report: Report) -> dict:
+    return {
+        "id": report.id,
+        "meeting_id": report.meeting_id,
+        "mentor_id": report.mentor_id,
+        "mentee_id": report.mentee_id,
+        "report_content": report.report_content,
+        "status": report.status,
+        "version": report.version,
+        "approved_at": report.approved_at.isoformat() if report.approved_at else None,
+        "shared_at": report.shared_at.isoformat() if report.shared_at else None,
+        "created_at": report.created_at.isoformat(),
+        "updated_at": report.updated_at.isoformat(),
+    }
+
+
+def _public_report_payload(report: Report) -> dict:
+    content = report.report_content or {}
+    meeting_details = content.get("meeting_details") or {}
+    return {
+        "id": report.id,
+        "meeting_title": meeting_details.get("meeting_title") or "Meeting Report",
+        "meeting_date": meeting_details.get("meeting_date"),
+        "summary": content.get("meeting_summary"),
+        "themes": content.get("discussion_points") or [],
+        "action_items": content.get("action_items") or [],
+        "progress": content.get("overall_progress"),
+        "strengths": content.get("strengths") or [],
+        "weaknesses": content.get("weaknesses") or [],
+        "follow_up_recommendations": content.get("follow_up_recommendations"),
+    }
+
+
+@router.post(
+    "/{report_id}/share-link",
+    response_model=ShareLinkResponse,
+)
+def generate_share_link(
+    report_id: int,
+    current_user: User = Depends(get_current_mentor),
+    db: Session = Depends(get_db),
+):
+    """Generate (or regenerate) a secure public share link for a report.
+
+    Only the owning mentor may create a link. The raw token is returned
+    exactly once; only its SHA-256 hash is stored.
+    """
+    report = (
+        db.query(Report)
+        .filter(Report.id == report_id, Report.mentor_id == current_user.id)
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    if report.status != "approved":
+        raise HTTPException(
+            status_code=400,
+            detail="Only approved reports can be shared",
+        )
+
+    token = _generate_share_token()
+    _store_share_token(report, token)
+    report.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"share_url": _build_public_share_url(token), "token": token}
+
+
+@router.post(
+    "/{report_id}/share-link/revoke",
+    response_model=ReportResponse,
+)
+def revoke_share_link(
+    report_id: int,
+    current_user: User = Depends(get_current_mentor),
+    db: Session = Depends(get_db),
+):
+    """Revoke public sharing for a report. Existing tokens stop working."""
+    report = (
+        db.query(Report)
+        .filter(Report.id == report_id, Report.mentor_id == current_user.id)
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report.share_revoked = True
+    report.share_token_hash = None
+    report.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(report)
+
+    return _report_dict(report)
+
+
+@router.get(
+    "/public/{token}",
+    response_model=PublicReportResponse,
+)
+def get_public_report(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """Public, unauthenticated access to a shared report by token.
+
+    Invalid, revoked, or missing tokens return 404 (not 401/403) so that
+    brute-forcing the token does not leak which report IDs exist.
+    """
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    report = (
+        db.query(Report)
+        .filter(
+            Report.share_token_hash == token_hash,
+            Report.share_revoked == False,  # noqa: E712
+        )
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    return _public_report_payload(report)
+
+
+@router.delete(
+    "/{report_id}",
+    response_model=dict,
+)
+def delete_report(
+    report_id: int,
+    current_user: User = Depends(get_current_mentor),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete a report. Only the owning mentor may delete."""
+    report = (
+        db.query(Report)
+        .filter(Report.id == report_id, Report.mentor_id == current_user.id)
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    db.delete(report)
+    db.commit()
+
+    return {"message": "Report deleted", "report_id": report_id}

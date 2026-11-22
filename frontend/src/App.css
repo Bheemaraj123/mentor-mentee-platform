@@ -182,3 +182,17 @@
     border-right-color: var(--border);
   }
 }
+
+
+/* Workspace dropdown positioning */
+.workspace-menu-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.workspace-menu-wrapper .action-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 9999;
+}

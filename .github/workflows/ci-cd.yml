@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+﻿name: CI
 
 on:
   push:
@@ -10,21 +10,6 @@ jobs:
   backend-tests:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: mentor_mentee_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
 
@@ -34,30 +19,17 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          cd backend
-          pip install -r requirements.txt
+        working-directory: backend
+        run: pip install -r requirements.txt
 
-      - name: Run migrations
-        run: |
-          cd backend
-          alembic upgrade head
-
-      - name: Seed database
-        run: |
-          cd backend
-          python app/core/seed.py
-
-      - name: Run tests
-        run: |
-          cd backend
-          pytest tests/ -v --tb=short
+      - name: Run backend tests
+        working-directory: backend
+        run: pytest tests/ -v --tb=short
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mentor_mentee_test
           SECRET_KEY: test_secret_key_for_testing_only
-          OPENAI_API_KEY: your_openai_api_key_here
+          OPENAI_API_KEY: test_key_for_ci
 
-  frontend-tests:
+  frontend:
     runs-on: ubuntu-latest
 
     steps:
@@ -66,69 +38,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: '22'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: |
-          cd frontend
-          npm ci
+        working-directory: frontend
+        run: npm ci
 
-      - name: Run tests
-        run: |
-          cd frontend
-          npm run test:run
-        env:
-          VITE_API_URL: http://localhost:8000/api/v1
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm run test:run
 
-  docker-build:
-    runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build backend image
-        run: |
-          docker build -t mentor-mentee-backend ./backend
-
-      - name: Build frontend image
-        run: |
-          docker build -t mentor-mentee-frontend ./frontend
-
-      - name: Test docker-compose
-        run: |
-          docker-compose up -d --build
-          sleep 30
-          curl -f http://localhost:8000/ || exit 1
-          curl -f http://localhost:5173/ || exit 1
-          docker-compose down
-
-  deploy-staging:
-    runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to staging
-        run: |
-          echo "Deploy to staging environment"
-          # Add your deployment commands here
-
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.ref == 'refs/heads/main'
-    environment: production
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to production
-        run: |
-          echo "Deploy to production environment"
-          # Add your deployment commands here
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build

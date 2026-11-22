@@ -191,6 +191,27 @@ h1 { margin-bottom: 8px; color: var(--ink); font-size: clamp(28px, 3vw, 37px); l
 .dropdown-item.danger { color: #d66f61; }
 .dropdown-item.danger:hover { color: #fff; background: #d66f61; }
 .dropdown-item svg { flex: 0 0 auto; }
+
+/* Workspace dropdown: inline expanding menu within the sidebar flow */
+.workspace-menu-wrapper {
+  width: 100%;
+}
+.workspace-menu-wrapper .action-menu-dropdown {
+  position: static;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: max-height .25s ease, opacity .18s ease;
+}
+.workspace-menu-wrapper.open .action-menu-dropdown {
+  max-height: 240px;
+  opacity: 1;
+  visibility: visible;
+}
 .spotlight-card { padding: 17px; }.spotlight-head { display: flex; align-items: center; gap: 10px; }.spotlight-head > span:not(.status-pulse) { display: flex; flex-direction: column; min-width: 0; flex: 1; }.spotlight-head strong { color: var(--ink); font-size: 13px; }.spotlight-head small { margin-top: 4px; color: #9aa8b9; font-size: 10px; }.status-pulse { width: 8px; height: 8px; border-radius: 50%; background: #58c6a7; box-shadow: 0 0 0 4px #e2f7f0; }.spotlight-divider { height: 1px; margin: 15px 0; background: #edf1f5; }.spotlight-goal { display: flex; align-items: center; gap: 9px; }.goal-icon { width: 30px; height: 30px; display: grid; place-items: center; color: #d58d4e; background: #fff1de; border-radius: 9px; }.spotlight-goal > span { display: flex; flex: 1; flex-direction: column; min-width: 0; }.spotlight-goal small { color: #9da8b7; font-size: 9px; }.spotlight-goal strong { margin-top: 3px; color: var(--ink); font-size: 10px; }.goal-progress { display: flex; align-items: center; gap: 8px; margin: 14px 0 10px 39px; }.goal-progress > span, .person-progress > span { height: 5px; overflow: hidden; flex: 1; border-radius: 99px; background: #e9eef4; }.goal-progress i, .person-progress i { height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg, #ffad7c, #ffd096); }.goal-progress small { color: #9da8b5; font-size: 9px; white-space: nowrap; }.spotlight-note { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 13px 39px; color: #9a7b66; font-size: 10px; line-height: 1.4; }.spotlight-note svg { flex: 0 0 auto; color: #eca559; }.outline-button { width: 100%; padding: 9px; color: #6e83b4; border: 1px solid #ccd9ef; background: #fbfdff; }.outline-button:hover { color: var(--cobalt); border-color: #91b1fa; }.outline-button svg { margin-left: auto; }
 .goal-card { padding: 17px; margin-top: 15px; }.progress-ring { width: 55px; height: 55px; position: relative; display: grid; place-items: center; }.progress-ring svg { width: 55px; height: 55px; transform: rotate(-90deg); }.ring-track, .ring-value { fill: none; stroke-width: 7; }.ring-track { stroke: #e8eff7; }.ring-value { stroke: var(--cobalt); stroke-linecap: round; }.progress-ring strong { position: absolute; font-size: 11px; color: var(--ink); }.goal-list { display: flex; flex-direction: column; gap: 14px; padding-top: 15px; }.goal-list > div { display: flex; align-items: center; gap: 8px; }.goal-check { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 8px; }.goal-check.green { color: #2ba585; background: #e3f7ef; }.goal-check.orange { color: #e29a42; background: #fff1dd; }.goal-check.blue { color: #5b83dd; background: #e9f0ff; }.goal-list span:not(.goal-check) { display: flex; flex: 1; flex-direction: column; gap: 2px; }.goal-list strong { color: var(--ink-soft); font-size: 10px; }.goal-list small { color: #a0abba; font-size: 9px; }.goal-list b { color: #71819a; font-size: 10px; }.ai-tip { display: flex; align-items: center; gap: 9px; margin-top: 15px; padding: 12px; border: 1px solid #e4e5fb; border-radius: 11px; background: linear-gradient(100deg, #faf9ff, #f4f9ff); }.tip-icon { width: 29px; height: 29px; display: grid; place-items: center; flex: 0 0 auto; color: #7569cb; background: #eae8ff; border-radius: 9px; }.ai-tip > span { display: flex; flex-direction: column; gap: 3px; flex: 1; }.ai-tip strong { color: #7371b3; font-size: 10px; }.ai-tip small { color: #9ba7b6; font-size: 9px; line-height: 1.35; }.ai-tip > svg:last-child { color: #a2aac1; }
 

@@ -1,3 +1,4 @@
+
 # Environment variables and secrets
 .env
 .env.*
@@ -10,6 +11,8 @@ __pycache__/
 venv/
 .venv/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Node
 node_modules/
@@ -28,9 +31,26 @@ build/
 *.sqlite
 *.sqlite3
 
-# Uploaded files and generated storage
+# Runtime uploads and local storage
+backend/storage/uploads/
+backend/storage/task_uploads/
 storage/uploads/
-uploads/
+storage/postgres_data/
+storage/test_postgres_data/
+
+# Local diagnostic and test artifacts
+backend/check_db.py
+backend/check_reports.py
+backend/check_pwd.py
+backend/check_schema.py
+backend/test_login.py
+backend/test_report.pdf
+backend/test_report.docx
+frontend/src/pages/Home.tsx.original
+
+# Local project notes and generated memory
+memory/
+PROJECT_STRUCTURE.txt
 
 # OS files
 .DS_Store
@@ -38,7 +58,3 @@ Thumbs.db
 
 # Claude local settings
 .claude/
-
-# Local database inspection scripts
-backend/check_db.py
-backend/check_reports.py

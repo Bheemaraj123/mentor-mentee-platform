@@ -13,6 +13,9 @@ reportlab
 ffmpeg-python
 openai
 faster-whisper
+# faster-whisper 1.2.1 calls av.open(..., metadata_errors="ignore"); PyAV 19.0.0+
+# removed that argument and breaks transcription. Pin to a compatible version.
+av<=18.1.0
 pytest
 httpx
 psycopg2-binary

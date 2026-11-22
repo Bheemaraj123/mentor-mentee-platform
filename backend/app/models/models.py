@@ -1,7 +1,9 @@
 import enum
 from datetime import datetime
+# from pyparsing import Optional
+from typing import Optional
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Boolean, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.db.session import Base
 
 class UserRole(str, enum.Enum):
@@ -42,7 +44,7 @@ class User(Base):
     full_name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(50), nullable=False) # mentor or mentee
+    role: Mapped[str] = mapped_column(String(50), nullable=False) # mentor or mentee
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -100,7 +102,10 @@ class Meeting(Base):
     meeting_title = Column(String(255), nullable=False)
     meeting_date = Column(DateTime, nullable=False)
     description = Column(Text, nullable=True)
-    processing_status = Column(String(50), default="pending") # pending, processing, completed, failed
+    processing_status: Mapped[str] = mapped_column(
+    String(50),
+    default="pending"
+    ) # pending, processing, completed, failed
     created_at = Column(DateTime, default=datetime.utcnow)
 
     files = relationship("MeetingFile", back_populates="meeting", cascade="all, delete-orphan")
@@ -114,8 +119,14 @@ class MeetingFile(Base):
     file_name = Column(String(255), nullable=False)
     file_type = Column(String(50), nullable=False) # audio, video, transcript, document
     file_path = Column(String(512), nullable=False)
-    extracted_text = Column(Text, nullable=True)
-    processing_status = Column(String(50), default="pending")
+    extracted_text: Mapped[Optional[str]] = mapped_column(
+    Text,
+    nullable=True
+    )
+    processing_status: Mapped[str] = mapped_column(
+        String(50),
+        default="pending"
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
 
     meeting = relationship("Meeting", back_populates="files")
@@ -132,6 +143,10 @@ class Report(Base):
     version = Column(Integer, default=1)
     approved_at = Column(DateTime, nullable=True)
     shared_at = Column(DateTime, nullable=True)
+    # Public, token-based sharing (Option 2). Only the SHA-256 hash of the
+    # token is persisted; the raw token is returned once at generation time.
+    share_token_hash = Column(String(128), nullable=True)
+    share_revoked = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -169,6 +184,11 @@ class Task(Base):
     related_meeting = Column(String(255), nullable=True)
     category = Column(String(100), nullable=True) # e.g., "General", "Meeting Follow-up", "Study", "Project", "Career", "Personal"
     notes = Column(Text, nullable=True)
+    # File upload completion fields
+    require_file_upload = Column(Boolean, default=False)
+    completion_description = Column(Text, nullable=True)
+    uploaded_file_path = Column(String(512), nullable=True)
+    uploaded_file_name = Column(String(255), nullable=True)
 
     report = relationship("Report", back_populates="tasks")
 

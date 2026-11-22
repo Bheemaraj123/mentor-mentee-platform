@@ -1,7 +1,11 @@
 import type { FC } from 'react';
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { MoreHorizontal } from 'lucide-react';
 import { api } from '../../services/api';
+import { ShareOptions } from '@/components/ShareOptions';
+import { DeleteConfirm } from '@/components/DeleteConfirm';
 import {
   Table,
   TableRow,
@@ -49,6 +53,13 @@ export const MentorReports: FC = () => {
       Authorization: `Bearer ${token}`,
     },
   };
+
+  // Three-dot menu state
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [shareReportId, setShareReportId] = useState<number | null>(null);
+  const [shareReportTitle, setShareReportTitle] = useState<string>('');
+  const [deleteReportId, setDeleteReportId] = useState<number | null>(null);
+  const [deleteReportTitle, setDeleteReportTitle] = useState<string>('');
 
   // Fetch reports
   const {
@@ -133,6 +144,46 @@ export const MentorReports: FC = () => {
       queryClient.invalidateQueries({
         queryKey: ['mentor-reports'],
       });
+      toast.success('Report shared', {
+        description: 'The report has been shared with your mentee.',
+      });
+    },
+    onError: (shareError: unknown) => {
+      const detail =
+        (shareError as any)?.response?.data?.detail ||
+        (shareError as Error)?.message ||
+        'Failed to share report. Please try again.';
+      toast.error('Failed to share report', { description: detail });
+    },
+  });
+
+  // Delete report
+  const deleteMutation = useMutation({
+    mutationKey: ['delete-report'],
+    mutationFn: async (reportId: number) => {
+      const response = await api.delete(
+        `/reports/${reportId}`,
+        authConfig
+      );
+
+      return response.data;
+    },
+    onSuccess: (_data, reportId) => {
+      const title =
+        reports.find((r) => r.id === reportId)?.meeting_title || 'Report';
+      queryClient.invalidateQueries({
+        queryKey: ['mentor-reports'],
+      });
+      toast.success('Report deleted', {
+        description: `"${title}" has been permanently deleted.`,
+      });
+    },
+    onError: (deleteError: unknown) => {
+      const detail =
+        (deleteError as any)?.response?.data?.detail ||
+        (deleteError as Error)?.message ||
+        'Failed to delete report. Please try again.';
+      toast.error('Failed to delete report', { description: detail });
     },
   });
 
@@ -307,6 +358,46 @@ export const MentorReports: FC = () => {
                           </button>
                         </>
                       )}
+
+                      <div className="relative">
+                        <button
+                          className="icon-button subtle"
+                          aria-label="More actions"
+                          aria-expanded={openMenuId === report.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setOpenMenuId((prev) =>
+                              prev === report.id ? null : report.id
+                            );
+                          }}
+                        >
+                          <MoreHorizontal size={16} />
+                        </button>
+                        {openMenuId === report.id && (
+                          <div className="action-menu-dropdown" style={{ right: 0 }}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => {
+                                setShareReportId(report.id);
+                                setShareReportTitle(report.meeting_title);
+                                setOpenMenuId(null);
+                              }}
+                            >
+                              Share
+                            </button>
+                            <button
+                              className="dropdown-item danger"
+                              onClick={() => {
+                                setDeleteReportId(report.id);
+                                setDeleteReportTitle(report.meeting_title);
+                                setOpenMenuId(null);
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -380,6 +471,44 @@ export const MentorReports: FC = () => {
           })}
         </div>
       )}
+
+      {/* Share options popup */}
+      <ShareOptions
+        open={shareReportId !== null}
+        reportId={shareReportId || 0}
+        reportTitle={shareReportTitle}
+        onClose={() => {
+          setShareReportId(null);
+          setShareReportTitle('');
+        }}
+        onShared={() => {
+          setShareReportId(null);
+          setShareReportTitle('');
+        }}
+      />
+
+      {/* Delete confirmation dialog */}
+      <DeleteConfirm
+        open={deleteReportId !== null}
+        title="Delete report"
+        message={
+          deleteReportTitle
+            ? `"${deleteReportTitle}" and all of its versions will be permanently deleted. This action cannot be undone.`
+            : 'This report and all of its versions will be permanently deleted. This action cannot be undone.'
+        }
+        isPending={deleteMutation.isPending}
+        onClose={() => {
+          setDeleteReportId(null);
+          setDeleteReportTitle('');
+        }}
+        onConfirm={() => {
+          if (deleteReportId !== null) {
+            deleteMutation.mutate(deleteReportId);
+            setDeleteReportId(null);
+            setDeleteReportTitle('');
+          }
+        }}
+      />
     </div>
   );
 };

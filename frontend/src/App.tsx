@@ -73,6 +73,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import Home from './pages/Home';
 import { Settings } from './pages/Settings';
 import Notifications from './pages/Notifications';
+import { PublicReportView } from './pages/PublicReportView';
 
 import { DashboardLayout } from './components/layout/DashboardLayout';
 
@@ -124,9 +125,14 @@ export function App() {
   return (
     <Router>
       <Routes>
+        {/* Public routes (no authentication required) */}
+        <Route path="/reports/public/:token" element={<PublicReportView />} />
+
+        {/* Auth routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
+        {/* Protected routes */}
         <Route path="/mentor/*" element={<AppRoutes />} />
         <Route path="/mentee/*" element={<AppRoutes />} />
 

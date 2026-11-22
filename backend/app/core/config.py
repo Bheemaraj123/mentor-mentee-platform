@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # Database URL
     DATABASE_URL: Optional[str] = None
 
+    # Public share links (Option 2). Base URL used to build public report
+    # share links. Defaults to the local dev server; override in production.
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
+
     # AI API Config
     OPENAI_API_KEY: Optional[str] = ""
     GROQ_API_KEY: Optional[str] = ""
