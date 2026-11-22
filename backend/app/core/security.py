@@ -11,7 +11,7 @@ from app.core.config import settings
 # Support bcrypt and sha256_crypt password hashes.
 # bcrypt is pinned to 4.0.1 for compatibility with Passlib.
 pwd_context = CryptContext(
-    schemes=["bcrypt_sha256", "bcrypt", "sha256_crypt"],
+    schemes=["bcrypt", "sha256_crypt"],
     deprecated="auto",
 )
 
