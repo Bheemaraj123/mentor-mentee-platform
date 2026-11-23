@@ -303,18 +303,29 @@ Or Sign Up And Use
 
 ## AI Integration
 
-The platform uses OpenAI-compatible APIs for structured report generation:
+The platform uses Groq's API for AI-powered structured report generation.
 
-1. **Schema**: `StructuredReport` in `backend/app/ai/schemas.py` defines the exact JSON structure
-2. **Generation**: `backend/app/ai/report_generator.py` handles LLM calls with JSON mode
-3. **Validation**: Pydantic validates LLM output before persistence
-4. **Fallback**: Mock generator used when no valid API key configured
+1. **Schema:** `StructuredReport` in `backend/app/ai/schemas.py` defines the expected JSON structure.
+2. **Generation:** `backend/app/ai/report_generator.py` handles LLM requests and structured output generation.
+3. **Validation:** Pydantic validates the generated output before saving it to the database.
+4. **Fallback:** A mock report generator is available for development when AI configuration is unavailable.
 
-To enable real AI:
-1. Set `OPENAI_API_KEY` in environment
-2. Set `LLM_PROVIDER=openai`
-3. Optionally set `LLM_MODEL` (default: gpt-4o-mini)
-4. Optionally set `OPENAI_BASE_URL` for compatible APIs
+### Groq Configuration
+
+To enable AI-powered report generation:
+
+1. Obtain an API key from [Groq Console](https://console.groq.com/).
+2. Add the following variables to your backend `.env` file:
+
+```env
+LLM_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key
+LLM_MODEL=openai/gpt-oss-120b
+```
+
+3. Restart the backend application.
+
+**Important:** Never commit your actual Groq API key to GitHub. Keep it in your local `.env` file.
 
 ## Database Migrations
 
@@ -354,13 +365,12 @@ npm test
 | `POSTGRES_DB` | Database name | mentor_mentee_db |
 | `POSTGRES_PORT` | PostgreSQL port | 5432 |
 | `DATABASE_URL` | Full database URL (overrides above) | - |
-| `SECRET_KEY` | JWT secret key | *required* |
+| `SECRET_KEY` | JWT secret key | Required |
 | `ALGORITHM` | JWT algorithm | HS256 |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiry | 10080 |
-| `OPENAI_API_KEY` | OpenAI API key | - |
-| `LLM_PROVIDER` | LLM provider | openai |
-| `LLM_MODEL` | Model name | gpt-4o-mini |
-| `OPENAI_BASE_URL` | Custom API base URL | - |
+| `LLM_PROVIDER` | LLM provider | groq |
+| `GROQ_API_KEY` | Groq API key | Required |
+| `LLM_MODEL` | Model name | openai/gpt-oss-120b |
 | `WHISPER_MODEL` | Whisper model size | base |
 
 ## Troubleshooting
@@ -391,7 +401,7 @@ npm test
 
 - [ ] Change `SECRET_KEY` in production
 - [ ] Use PostgreSQL in production (not SQLite)
-- [ ] Set secure `OPENAI_API_KEY`
+- [ ] Configure `GROQ_API_KEY` securely
 - [ ] Configure proper CORS origins
 - [ ] Use HTTPS with reverse proxy (nginx)
 - [ ] Set up database backups
