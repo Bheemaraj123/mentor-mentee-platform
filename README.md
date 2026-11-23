@@ -211,10 +211,11 @@ LLM_MODEL=gpt-4o-mini
 docker-compose up -d --build
 ```
 
-5. Access the application:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
+5. Application Access
+
+The application currently runs locally. Follow the installation and setup instructions above to run the frontend and backend on your machine.
+
+Public access to the application is not currently available.
 
 ### Local Development
 
@@ -243,8 +244,10 @@ After running `python app/core/seed.py`:
 
 | Role | Email | Password |
 |------|-------|----------|
-| Mentor | mentor.demo@example.com | Mentor@123 |
-| Mentee | mentee.demo@example.com | Mentee@123 |
+| Mentor | mentor.demo@example.com | Mentor@12345 |
+| Mentee | mentee.demo@example.com | Mentee@12345 | 
+
+Or Sign Up And Use 
 
 ## API Documentation
 
