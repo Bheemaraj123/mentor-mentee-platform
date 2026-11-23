@@ -1,4 +1,4 @@
-# AI-Based Mentor–Mentee Automatic Report Generation Platform
+# AI-Based Mentor–Mentee Automatic Report Generation Platform Using Structured LLM
 
 A complete production-ready platform for mentor-mentee report generation with AI-powered structured reporting, task management, and progress analytics.
 
