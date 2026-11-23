@@ -175,13 +175,22 @@ Men.AI/
 
 ### Quick Start with Docker
 
-1. Clone the repository:
+1. Clone the repository
+
 ```bash
-git clone <repository-url>
-cd Men.AI
+git clone https://github.com/abhiark01/Safe-Men.AI.git
+cd Safe-Men.AI
+```
 ```
 
-2. Copy environment file:
+2. Copy the environment file
+
+**Windows (PowerShell):**
+```powershell
+Copy-Item .env.example .env
+```
+
+**Linux / macOS:**
 ```bash
 cp .env.example .env
 ```
