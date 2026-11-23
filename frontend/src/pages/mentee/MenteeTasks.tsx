@@ -1,6 +1,6 @@
-import type { FC } from 'react';
+import type { FC, ChangeEvent } from 'react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { cn } from '../../lib/utils';
 import { AlertCircle, CheckCircle2, FileText, Upload, X, AlertTriangle } from 'lucide-react';
@@ -35,7 +35,7 @@ function ActionDetailsModal({ close, task, onComplete }: ActionDetailsModalProps
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -73,7 +73,7 @@ function ActionDetailsModal({ close, task, onComplete }: ActionDetailsModalProps
       formData.append('file', file);
 
       const token = localStorage.getItem('token');
-      const response = await api.post(`/tasks/mentee/${task.id}/complete-with-file`, formData, {
+      await api.post(`/tasks/mentee/${task.id}/complete-with-file`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`,

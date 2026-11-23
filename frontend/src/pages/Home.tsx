@@ -49,8 +49,6 @@ import {
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -1182,7 +1180,7 @@ function NewReportModal({ close, title, setTitle, mentee, setMentee, mentees, se
   };
 
 
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><div className="modal-card new-report-modal"><button className="modal-close icon-button" onClick={close} aria-label="Close"><X size={18} /></button>{generated ? <div className="generated-state"><div className="generated-icon"><Mic2 size={26} /></div><span className="section-kicker">Report generated</span><h2>Your conversation has shape.</h2><p>Men.AI found a clear summary, 3 themes, and 4 next steps from this session.</p><div className="generated-preview"><div><Sparkles size={16} /><span><strong>{title}</strong><small>{mentee} · Ready to review</small></span></div><Pill tone="ready">Ready</Pill></div><div className="generated-actions"><button className="primary-button" onClick={() => { close(); onOpen(reportId); }}>Open report <ArrowUpRight size={16} /></button><button className="secondary-button" onClick={() => onShare(reportId)}><Share2 size={15} /> Share</button></div></div> : <><div className="modal-icon"><WandSparkles size={21} /></div><span className="section-kicker">New AI report</span><h2>What are we unpacking?</h2><p>Give this session a little context. Men.AI will take it from there.</p><div className="source-switcher"><button className="source-option active"onClick={() => setShowComingSoon(true)}><Mic2 size={18} /><span><strong>Live session</strong><small>Record in the room</small></span><CheckCircle2 size={17} /></button><button className="source-option" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /><span><strong>Upload a file</strong><small>Audio, video, or transcript</small></span><Plus size={17} /></button></div><div className="form-grid"><label>Session title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label>{userRole === "mentor" && <label>Mentee<select value={mentee} onChange={(event) => setMentee(event.target.value)}><option value="">Select a mentee</option>{mentees.map((m) => <option key={m.id} value={m.full_name}>{m.full_name}</option>)}</select></label>}</div><label className={`drop-zone ${dragOver ? "drag-over" : ""}`} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onClick={() => fileInputRef.current?.click()}><input ref={fileInputRef} type="file" accept=".mp3,.wav,.m4a,.mp4,.mov,.mkv,.txt,.pdf,.docx" onChange={(e) => { if (e.target.files && e.target.files[0]) handleFileSelect(e.target.files[0]); }} style={{ display: "none" }} /><FileUp size={21} /><span><strong>{selectedFile ? selectedFile.name : "Drop a conversation file here"}</strong><small>{selectedFile ? `${formatFileSize(selectedFile.size)} · Click to replace` : "or browse from your computer · up to 500 MB"}</small></span>{selectedFile && <button type="button" className="icon-button subtle" onClick={removeFile} aria-label="Remove file"><X size={16} /></button>}</label><button className="primary-button modal-submit" onClick={generate} disabled={isGenerating || !selectedFile}>{isGenerating ? <><RefreshCw size={17} className="spin" /> Generating report...</> : <><Sparkles size={17} /> Generate with Men.AI</>}</button><p className="modal-note"><Check size={14} /> You can review and edit every section before sharing.</p></>}</div>
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><div className="modal-card new-report-modal"><button className="modal-close icon-button" onClick={close} aria-label="Close"><X size={18} /></button>{generated ? <div className="generated-state"><div className="generated-icon"><Mic2 size={26} /></div><span className="section-kicker">Report generated</span><h2>Your conversation has shape.</h2><p>Men.AI found a clear summary, 3 themes, and 4 next steps from this session.</p><div className="generated-preview"><div><Sparkles size={16} /><span><strong>{title}</strong><small>{mentee} · Ready to review</small></span></div><Pill tone="ready">Ready</Pill></div><div className="generated-actions"><button className="primary-button" onClick={() => { close(); onOpen(reportId); }}>Open report <ArrowUpRight size={16} /></button><button className="secondary-button" onClick={() => { if (reportId !== null) onShare(reportId); }}><Share2 size={15} /> Share</button></div></div> : <><div className="modal-icon"><WandSparkles size={21} /></div><span className="section-kicker">New AI report</span><h2>What are we unpacking?</h2><p>Give this session a little context. Men.AI will take it from there.</p><div className="source-switcher"><button className="source-option active"onClick={() => setShowComingSoon(true)}><Mic2 size={18} /><span><strong>Live session</strong><small>Record in the room</small></span><CheckCircle2 size={17} /></button><button className="source-option" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /><span><strong>Upload a file</strong><small>Audio, video, or transcript</small></span><Plus size={17} /></button></div><div className="form-grid"><label>Session title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label>{userRole === "mentor" && <label>Mentee<select value={mentee} onChange={(event) => setMentee(event.target.value)}><option value="">Select a mentee</option>{mentees.map((m) => <option key={m.id} value={m.full_name}>{m.full_name}</option>)}</select></label>}</div><label className={`drop-zone ${dragOver ? "drag-over" : ""}`} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onClick={() => fileInputRef.current?.click()}><input ref={fileInputRef} type="file" accept=".mp3,.wav,.m4a,.mp4,.mov,.mkv,.txt,.pdf,.docx" onChange={(e) => { if (e.target.files && e.target.files[0]) handleFileSelect(e.target.files[0]); }} style={{ display: "none" }} /><FileUp size={21} /><span><strong>{selectedFile ? selectedFile.name : "Drop a conversation file here"}</strong><small>{selectedFile ? `${formatFileSize(selectedFile.size)} · Click to replace` : "or browse from your computer · up to 500 MB"}</small></span>{selectedFile && <button type="button" className="icon-button subtle" onClick={removeFile} aria-label="Remove file"><X size={16} /></button>}</label><button className="primary-button modal-submit" onClick={generate} disabled={isGenerating || !selectedFile}>{isGenerating ? <><RefreshCw size={17} className="spin" /> Generating report...</> : <><Sparkles size={17} /> Generate with Men.AI</>}</button><p className="modal-note"><Check size={14} /> You can review and edit every section before sharing.</p></>}</div>
 
 {showComingSoon && (
   <div
@@ -1239,7 +1237,7 @@ function NewReportModal({ close, title, setTitle, mentee, setMentee, mentees, se
 </div>;
 }
 
-function ReportPreview({ report, close, onRefine, onOpenShare, queryClient }: { report: Report; close: () => void; onRefine: () => void; onOpenShare: () => void; queryClient: ReturnType<typeof useQueryClient> }) {
+function ReportPreview({ report, close, onRefine, onOpenShare }: { report: Report; close: () => void; onRefine: () => void; onOpenShare: () => void }) {
   const content = report.reportContent as any;
   const summary = content?.meeting_summary || "";
   const themes = content?.discussion_points || [];
@@ -1355,7 +1353,7 @@ const weeklyCompletionData = useMemo(() => {
   });
 
   return Object.entries(weeklyData)
-    .map(([week, count], index) => ({
+    .map(([, count], index) => ({
     week: `Week ${index + 1}`,
     completed: count,
   }))
@@ -1894,7 +1892,7 @@ function ActionDetailsModal({ close, action, userRole, onComplete }: ActionDetai
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await api.post(`/tasks/mentee/${action.id}/complete-with-file`, formData, {
+      await api.post(`/tasks/mentee/${action.id}/complete-with-file`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -2205,7 +2203,7 @@ export default function Home() {
     setActiveView(getViewFromPath(location.pathname));
   }, [location.pathname]);
 
-  const [search, setSearch] = useState("");
+  const [search] = useState("");
   const [actionFilter, setActionFilter] = useState<"all" | "open" | "done">("all");
   const [showNewReport, setShowNewReport] = useState(false);
   const [showAddAction, setShowAddAction] = useState(false);
@@ -2214,10 +2212,9 @@ export default function Home() {
   const [showEditActionModal, setShowEditActionModal] = useState(false);
   const [showActionDetailsModal, setShowActionDetailsModal] = useState(false);
   const [selectedActionForView, setSelectedActionForView] = useState<ActionItem | null>(null);
-  const [showInvitationModal, setShowInvitationModal] = useState(false);
   const [generatedInvitationCode, setGeneratedInvitationCode] = useState<string | null>(null);
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
-  const [isCodeCopied, setIsCodeCopied] = useState(false);
+  const [, setIsCodeCopied] = useState(false);
   const [showConnectMentor, setShowConnectMentor] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [joiningMentor, setJoiningMentor] = useState(false);
@@ -2238,7 +2235,6 @@ export default function Home() {
   const [mentees, setMentees] = useState<Mentee[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
-  const [showComingSoon, setShowComingSoon] = useState(false);
   const workspaceMenuRef = useRef<HTMLDivElement>(null);
 
   const userRole = user?.role || localStorage.getItem('role') || 'mentor';
@@ -2437,23 +2433,6 @@ export default function Home() {
       };
     });
   }, [tasks, mentees]);
-
-  // Calculate real metrics from backend data
-  const totalReportsCount = useMemo(() => {
-    return reports.filter(report => report.status === "Ready").length;
-  }, [reports]);
-
-  const draftReportsCount = useMemo(() => {
-    return reports.filter(report => report.status === "Draft").length;
-  }, [reports]);
-
-  const processingReportsCount = useMemo(() => {
-    return reports.filter(report => report.status === "Processing").length;
-  }, [reports]);
-
-  const totalActionsCount = useMemo(() => {
-    return baseActions.filter(action => action.status === "open").length;
-  }, [baseActions]);
 
   // Overview dashboard metrics derived from real data
   const dashboardMetrics = useMemo(() => {
@@ -2790,7 +2769,7 @@ export default function Home() {
 
     setJoiningMentor(true);
     try {
-      const response = await api.post("/assignments/join", { code: joinCode.trim() });
+      await api.post("/assignments/join", { code: joinCode.trim() });
       setJoinCode("");
       setShowConnectMentor(false);
       toast.success("Successfully connected to mentor!", {
@@ -3096,7 +3075,7 @@ export default function Home() {
                   <div className="person-card surface-card" style={{ gridColumn: '1 / -1', maxWidth: '400px' }}>
                     <div className="person-top">
                       <Avatar
-                        initials={myMentorData.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'M'}
+                        initials={myMentorData.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'M'}
                         tone="blue"
                         size="lg"
                       />
@@ -3160,7 +3139,7 @@ export default function Home() {
         api.post("/tasks/", payload).then(() => {
           queryClient.invalidateQueries({ queryKey: ['tasks'] });
           toast.success("Action item added");
-        }).catch((err) => {
+        }).catch(() => {
           toast.error("Failed to add action item");
         });
       }} mentees={mentees} />}
@@ -3186,7 +3165,7 @@ export default function Home() {
                 toast.success("Action item updated");
                 setShowEditActionModal(false);
                 setSelectedActionForEdit(null);
-              }).catch((err) => {
+              }).catch(() => {
                 toast.error("Failed to update action item");
               });
             }
@@ -3207,7 +3186,7 @@ export default function Home() {
           }}
         />
       )}
-      {selectedReport && <ReportPreview report={selectedReport} close={() => setSelectedReport(null)} onRefine={() => toast.success("Section refined", { description: "Men.AI polished the summary while keeping your meaning intact." })} onOpenShare={() => setShowShareOptions(true)} queryClient={queryClient} />}
+      {selectedReport && <ReportPreview report={selectedReport} close={() => setSelectedReport(null)} onRefine={() => toast.success("Section refined", { description: "Men.AI polished the summary while keeping your meaning intact." })} onOpenShare={() => setShowShareOptions(true)}  />}
 
       {selectedReport && (
         <ShareOptions

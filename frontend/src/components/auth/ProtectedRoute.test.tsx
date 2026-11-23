@@ -1,5 +1,6 @@
+
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -21,9 +22,12 @@ const createWrapper = () => {
 
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {children}
-      </BrowserRouter>
+      <MemoryRouter initialEntries={['/protected']}>
+        <Routes>
+          <Route path="/protected" element={<>{children}</>} />
+          <Route path="/login" element={<div>Login Page</div>} />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>
   );
 };
@@ -35,16 +39,19 @@ describe('ProtectedRoute', () => {
 
   it('renders children when user has correct role', () => {
     mockUseAuth.mockReturnValue({
-      user: { id: 1, email: 'mentor@example.com', full_name: 'Test Mentor', role: 'mentor' },
+      user: {
+        id: 1,
+        email: 'mentor@example.com',
+        full_name: 'Test Mentor',
+        role: 'mentor',
+      },
       isLoading: false,
       logout: vi.fn(),
     });
 
-    const TestComponent = () => <div>Protected Content</div>;
-
     render(
       <ProtectedRoute allowedRoles={['mentor']}>
-        <TestComponent />
+        <div>Protected Content</div>
       </ProtectedRoute>,
       { wrapper: createWrapper() }
     );
@@ -52,22 +59,26 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
   });
 
-  it('redirects when user does not have correct role', () => {
+  it('redirects when user does not have correct role', async () => {
     mockUseAuth.mockReturnValue({
-      user: { id: 1, email: 'mentee@example.com', full_name: 'Test Mentee', role: 'mentee' },
+      user: {
+        id: 1,
+        email: 'mentee@example.com',
+        full_name: 'Test Mentee',
+        role: 'mentee',
+      },
       isLoading: false,
       logout: vi.fn(),
     });
 
-    const TestComponent = () => <div>Protected Content</div>;
-
     render(
       <ProtectedRoute allowedRoles={['mentor']}>
-        <TestComponent />
+        <div>Protected Content</div>
       </ProtectedRoute>,
       { wrapper: createWrapper() }
     );
 
+    expect(await screen.findByText('Login Page')).toBeInTheDocument();
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
   });
 
@@ -78,35 +89,32 @@ describe('ProtectedRoute', () => {
       logout: vi.fn(),
     });
 
-    const TestComponent = () => <div>Protected Content</div>;
-
     render(
       <ProtectedRoute allowedRoles={['mentor']}>
-        <TestComponent />
+        <div>Protected Content</div>
       </ProtectedRoute>,
       { wrapper: createWrapper() }
     );
 
-    // Loading state shows a spinner, let's check container or not.
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
+    expect(screen.queryByText('Login Page')).not.toBeInTheDocument();
   });
 
-  it('redirects to login when not authenticated', () => {
+  it('redirects to login when not authenticated', async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       isLoading: false,
       logout: vi.fn(),
     });
 
-    const TestComponent = () => <div>Protected Content</div>;
-
     render(
       <ProtectedRoute allowedRoles={['mentor']}>
-        <TestComponent />
+        <div>Protected Content</div>
       </ProtectedRoute>,
       { wrapper: createWrapper() }
     );
 
+    expect(await screen.findByText('Login Page')).toBeInTheDocument();
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
   });
 });

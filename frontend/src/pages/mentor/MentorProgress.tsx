@@ -759,7 +759,7 @@ export const MenteeProgress: FC = () => {
                         />
 
                         <Tooltip
-                          formatter={(value: number) => [value, 'tasks']}
+                          formatter={(value) => [Number(value ?? 0), 'tasks']}
                         />
 
                         <Legend />

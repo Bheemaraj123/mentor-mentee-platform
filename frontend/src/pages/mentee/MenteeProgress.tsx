@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +10,11 @@ import {
   Cell,
 } from 'recharts';
 import { api } from '../../services/api';
-import { CalendarDays, AlertCircle, CheckCircle2, Clock3, UsersRound, TrendingUp, Target, BookOpen } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  UsersRound,
+} from 'lucide-react';
 
 interface ProgressReport {
   id: number;
@@ -35,7 +38,6 @@ interface ProgressTask {
   completed_at?: string | null;
 }
 
-const STATUS_CHART_COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#e74c3c'];
 
 const getStatusClass = (status: string): string => {
   const STATUS_COLORS: Record<string, string> = {
@@ -361,14 +363,18 @@ export const MenteeProgress: React.FC = () => {
                           paddingAngle={3}
                           dataKey="value"
                           nameKey="name"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          label={({ name, percent }) =>
+                              `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                            }
                           labelLine={false}
                         >
-                          {chartData.map((entry, index) => (
+                          {chartData.map((entry) => (
                             <Cell key={entry.name} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number) => [value, 'tasks']} />
+                        <Tooltip
+                          formatter={(value) => [Number(value ?? 0), 'tasks']}
+                        />
                         <Legend layout="vertical" align="right" verticalAlign="middle" />
                       </PieChart>
                     </ResponsiveContainer>

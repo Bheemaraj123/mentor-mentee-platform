@@ -1,9 +1,8 @@
 
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/context/AuthContext';
-import Notifications from '@/pages/Notifications';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('@/services/api', () => ({
@@ -13,7 +12,12 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-import { api } from '@/services/api';
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({
@@ -28,6 +32,9 @@ vi.mock('@/context/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+import { api } from '@/services/api';
+import Notifications from '@/pages/Notifications';
+
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -38,9 +45,7 @@ const createWrapper = () => {
 
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>{children}</BrowserRouter>
-      </AuthProvider>
+      <BrowserRouter>{children}</BrowserRouter>
     </QueryClientProvider>
   );
 };
@@ -92,7 +97,10 @@ describe('Notifications Page', () => {
 
     render(<Notifications />, { wrapper: createWrapper() });
 
-    expect(await screen.findByText('New report request')).toBeInTheDocument();
+    expect(
+      await screen.findAllByText('New report request')
+    ).toHaveLength(2);
+
     expect(screen.getByText('Report shared with you')).toBeInTheDocument();
   });
 
@@ -108,42 +116,49 @@ describe('Notifications Page', () => {
 
   it('marks notification as read on click', async () => {
     mockInitialRequests();
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { message: 'Success' } });
+    vi.mocked(api.post).mockResolvedValueOnce({ data: {} });
 
     render(<Notifications />, { wrapper: createWrapper() });
 
-    const markAsReadButton = await screen.findByRole('button', {
-      name: /mark as read/i,
-    });
-
-    fireEvent.click(markAsReadButton);
+    fireEvent.click(
+      await screen.findByRole('button', { name: /mark as read/i })
+    );
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/notifications/1/read');
+      expect(screen.getByText('Unread')).toBeInTheDocument();
     });
 
-    expect(await screen.findByText('Marked as read')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /unread\s*0/i })
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole('button', { name: /mark as read/i })
+    ).not.toBeInTheDocument();
   });
 
   it('marks all as read', async () => {
     mockInitialRequests();
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { message: 'Success' } });
+    vi.mocked(api.post).mockResolvedValueOnce({ data: {} });
 
     render(<Notifications />, { wrapper: createWrapper() });
 
-    const markAllButton = await screen.findByRole('button', {
-      name: /mark all read/i,
-    });
-
-    fireEvent.click(markAllButton);
+    fireEvent.click(
+      await screen.findByRole('button', { name: /mark all read/i })
+    );
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/notifications/read-all');
     });
 
     expect(
-      await screen.findByText('All notifications marked as read')
+      screen.getByRole('button', { name: /unread\s*0/i })
     ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole('button', { name: /mark all read/i })
+    ).not.toBeInTheDocument();
   });
 
   it('shows empty state when no notifications', async () => {

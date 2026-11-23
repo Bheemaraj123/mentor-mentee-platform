@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { toast } from 'sonner';
 import {
   Mic2, FileUp, AudioLines, SlidersHorizontal, ChevronDown,
-  Settings2, Clock3, RefreshCw
+  Settings2, Clock3, RefreshCw, ListChecks
 } from 'lucide-react';
 
 interface Meeting {
@@ -49,7 +49,7 @@ export const MentorMeetings: React.FC = () => {
   });
 
   // Fetch meetings from backend
-  const { data: meetings = [], isLoading, refetch } = useQuery<Meeting[]>({
+  const { data: meetings = [], isLoading } = useQuery<Meeting[]>({
     queryKey: ['mentor-meetings'],
     queryFn: async () => {
       const response = await api.get('/meetings/mentor');
@@ -76,7 +76,7 @@ export const MentorMeetings: React.FC = () => {
   }), [uiMeetings, search]);
 
   // Fetch mentees from API
-  const { data: mentees = [], isMenteesLoading, refetch: refetchMentees } = useQuery<Mentee[]>({
+  const { data: mentees = [] } = useQuery<Mentee[]>({
     queryKey: ['mentor-mentees'],
     queryFn: async () => {
       const response = await api.get('/my-mentees');
@@ -91,7 +91,6 @@ export const MentorMeetings: React.FC = () => {
   const [selectedMenteeId, setSelectedMenteeId] = useState<number | null>(null);
 
   // Mutation for creating a meeting (with recording)
-  const queryClient = useQueryClient();
 
   const handleStartRecording = async () => {
     // Validate required fields
@@ -177,7 +176,7 @@ export const MentorMeetings: React.FC = () => {
     toast.success('Session saved', { description: 'Your transcript is ready for AI processing.' });
 
     // Show report generation form with the recorded audio
-    showReportGenerationForm(chunks);
+    generateReportFromRecording(chunks);
   };
 
   const generateReportFromRecording = async (chunks: Blob[]) => {
@@ -193,7 +192,7 @@ export const MentorMeetings: React.FC = () => {
     showReportGenerationForm(audioBlob);
   };
 
-  const showReportGenerationForm = async (audioBlob: Blob) => {
+  const showReportGenerationForm = async (_audioBlob: Blob) => {
     // In a real implementation, we would submit to the backend
     // POST /generate-report/{meeting_id} with FormData containing:
     // - audio file
@@ -244,7 +243,7 @@ export const MentorMeetings: React.FC = () => {
               {isRecording && <span className="session-timer">{formatTime(recordingState.elapsedTime)}</span>}
             </div>
             <div className="soundwave mirrored">
-              {[[...Array(15)].map((_, i) => <i key={i} style={{ animationDelay: `${i * 50}ms` }} />)}
+              {[...Array(15)].map((_, i) => <i key={i} style={{ animationDelay: `${i * 50}ms` }} />)}
             </div>
           </div>
           <h2>{isRecording ? "You're in the room." : "A better note-taker is waiting."}</h2>
